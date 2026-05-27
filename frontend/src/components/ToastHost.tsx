@@ -1,0 +1,33 @@
+export type ToastTone = "success" | "error" | "info";
+
+export interface ToastItem {
+  id: number;
+  tone: ToastTone;
+  title: string;
+  copy?: string;
+}
+
+interface ToastHostProps {
+  toasts: ToastItem[];
+  onDismiss: (id: number) => void;
+}
+
+export function ToastHost({ toasts, onDismiss }: ToastHostProps) {
+  if (!toasts.length) return null;
+
+  return (
+    <div className="toast-host" aria-live="polite" aria-relevant="additions removals">
+      {toasts.map((toast) => (
+        <article key={toast.id} className={`toast toast-${toast.tone}`}>
+          <div>
+            <strong>{toast.title}</strong>
+            {toast.copy && <p>{toast.copy}</p>}
+          </div>
+          <button type="button" aria-label="关闭通知" onClick={() => onDismiss(toast.id)}>
+            ×
+          </button>
+        </article>
+      ))}
+    </div>
+  );
+}

@@ -109,6 +109,8 @@ export interface ReportListItem {
   name: string;
   path: string;
   kind: string;
+  modified_at?: string;
+  size_bytes?: number;
 }
 
 export interface ReportContentView {

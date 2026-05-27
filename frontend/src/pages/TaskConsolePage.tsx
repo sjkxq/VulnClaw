@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { createTask, openTaskStream, stopTask } from "../api/web";
+import { useMemo, useState } from "react";
+import { createTask, stopTask } from "../api/web";
 import { useTasksQuery } from "../hooks/queries";
 import type { TaskCommand, TaskEvent, TaskRecord } from "../types/api";
 
@@ -36,12 +36,6 @@ export function TaskConsolePage({
   const [blockActions, setBlockActions] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!activeTask) return;
-    const source = openTaskStream(activeTask.task_id, onEvent);
-    return () => source.close();
-  }, [activeTask?.task_id, onEvent]);
 
   const latestEvents = useMemo(() => events.slice(-24).reverse(), [events]);
 
@@ -86,7 +80,7 @@ export function TaskConsolePage({
       onFocusTarget(task.target);
       await tasksQuery.refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create task");
+      setError(err instanceof Error ? err.message : "创建任务失败");
     } finally {
       setSubmitting(false);
     }
@@ -98,7 +92,7 @@ export function TaskConsolePage({
       await stopTask(activeTask.task_id);
       await tasksQuery.refetch();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to stop task");
+      setError(err instanceof Error ? err.message : "停止任务失败");
     }
   }
 
@@ -106,15 +100,15 @@ export function TaskConsolePage({
     <section className="card">
       <header className="card-header">
         <div>
-          <h3>Task Console</h3>
-          <p>Create tasks from the same backend commands used by the CLI and stream events over SSE.</p>
+          <h3>高级任务控制台</h3>
+          <p>保留原始命令、SSE 事件和调试参数，建议高级用户在排查问题时使用。</p>
         </div>
         <span className="status-badge">{activeTask?.status ?? "idle"}</span>
       </header>
 
       <div className="form-grid">
         <label className="field">
-          <span>Command</span>
+          <span>原始命令</span>
           <select value={command} onChange={(event) => setCommand(event.target.value as TaskCommand)}>
             <option value="run">run</option>
             <option value="recon">recon</option>
@@ -125,47 +119,47 @@ export function TaskConsolePage({
         </label>
 
         <label className="field field-wide">
-          <span>Target</span>
+          <span>目标</span>
           <input value={target} onChange={(event) => setTarget(event.target.value)} placeholder="https://target.example" />
         </label>
 
         <label className="check-row">
           <input checked={resume} onChange={(event) => setResume(event.target.checked)} type="checkbox" />
-          <span>Resume target history</span>
+          <span>沿用目标历史上下文</span>
         </label>
         <label className="field">
-          <span>Max Rounds</span>
+          <span>最大轮次</span>
           <input
             type="number"
             value={maxRounds}
             onChange={(event) => setMaxRounds(event.target.value ? Number(event.target.value) : "")}
-            placeholder="use backend default"
+            placeholder="使用后端默认值"
           />
         </label>
         <label className="field">
-          <span>Rounds / Cycle</span>
+          <span>每周期轮次</span>
           <input
             type="number"
             value={roundsPerCycle}
             onChange={(event) => setRoundsPerCycle(event.target.value ? Number(event.target.value) : "")}
-            placeholder="persistent only"
+            placeholder="仅持续检查"
           />
         </label>
         <label className="field">
-          <span>Max Cycles</span>
+          <span>最大周期</span>
           <input
             type="number"
             value={maxCycles}
             onChange={(event) => setMaxCycles(event.target.value ? Number(event.target.value) : "")}
-            placeholder="persistent only"
+            placeholder="仅持续检查"
           />
         </label>
         <label className="field">
-          <span>CVE Hint</span>
+          <span>CVE 提示</span>
           <input value={cve} onChange={(event) => setCve(event.target.value)} placeholder="exploit only" />
         </label>
         <label className="field">
-          <span>Only Port</span>
+          <span>仅测试端口</span>
           <input
             type="number"
             value={onlyPort}
@@ -174,41 +168,41 @@ export function TaskConsolePage({
           />
         </label>
         <label className="field">
-          <span>Only Host</span>
+          <span>仅测试主机</span>
           <input value={onlyHost} onChange={(event) => setOnlyHost(event.target.value)} placeholder="example.com" />
         </label>
         <label className="field field-wide">
-          <span>Only Path</span>
+          <span>仅测试路径</span>
           <input value={onlyPath} onChange={(event) => setOnlyPath(event.target.value)} placeholder="/admin" />
         </label>
         <label className="field">
-          <span>Blocked Host</span>
+          <span>排除主机</span>
           <input value={blockedHost} onChange={(event) => setBlockedHost(event.target.value)} placeholder="staging.example.com" />
         </label>
         <label className="field">
-          <span>Blocked Path</span>
+          <span>排除路径</span>
           <input value={blockedPath} onChange={(event) => setBlockedPath(event.target.value)} placeholder="/internal" />
         </label>
         <label className="field">
-          <span>Allow Actions</span>
+          <span>允许动作</span>
           <input value={allowActions} onChange={(event) => setAllowActions(event.target.value)} placeholder="recon,scan" />
         </label>
         <label className="field">
-          <span>Block Actions</span>
+          <span>禁止动作</span>
           <input value={blockActions} onChange={(event) => setBlockActions(event.target.value)} placeholder="exploit,persistent" />
         </label>
         <label className="field field-wide">
-          <span>Command Hint</span>
-          <input value={cmd} onChange={(event) => setCmd(event.target.value)} placeholder="verification command, e.g. id" />
+          <span>命令提示</span>
+          <input value={cmd} onChange={(event) => setCmd(event.target.value)} placeholder="验证命令，例如 id" />
         </label>
       </div>
 
       <div className="button-row">
         <button className="primary-btn" disabled={submitting || !target.trim()} onClick={handleRun} type="button">
-          {submitting ? "Starting..." : "Start task"}
+          {submitting ? "启动中..." : "启动原始任务"}
         </button>
         <button className="secondary-btn" disabled={!activeTask || activeTask.status !== "running"} onClick={handleStop} type="button">
-          Stop task
+          停止任务
         </button>
       </div>
 
@@ -216,7 +210,7 @@ export function TaskConsolePage({
 
       <div className="split-grid inner-grid">
         <article className="card inset-card">
-          <h4>Task History</h4>
+          <h4>任务记录</h4>
           <div className="list list-scroll">
             {tasksQuery.data?.slice(0, 8).map((task) => (
               <button
@@ -236,12 +230,12 @@ export function TaskConsolePage({
                 )}
               </button>
             ))}
-            {!tasksQuery.data?.length && <div className="empty-state">No task records yet.</div>}
+            {!tasksQuery.data?.length && <div className="empty-state">暂无任务记录。</div>}
           </div>
         </article>
 
         <article className="card inset-card">
-          <h4>Live Event Stream</h4>
+          <h4>实时事件流</h4>
           <div className="terminal terminal-scroll">
             {activeTask ? (
               <>
@@ -254,7 +248,7 @@ export function TaskConsolePage({
                 )}
               </>
             ) : (
-              <div className="terminal-line dim">No active task yet.</div>
+              <div className="terminal-line dim">暂无运行中的任务。</div>
             )}
 
             {latestEvents.map((item) => (

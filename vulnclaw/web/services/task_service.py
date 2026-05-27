@@ -10,6 +10,7 @@ from vulnclaw.orchestrator import run_agent_task, validate_action_constraints
 from vulnclaw.web.schemas import TaskCreateRequest
 from vulnclaw.web.task_manager import WebTaskManager
 from vulnclaw.config.settings import load_config
+from vulnclaw.agent.context import TaskConstraints
 from vulnclaw.agent.input_analysis import extract_task_constraints
 
 
@@ -23,8 +24,8 @@ def start_task(manager: WebTaskManager, request: TaskCreateRequest) -> str:
 
 async def _run_task(manager: WebTaskManager, task_id: str, request: TaskCreateRequest) -> None:
     config = load_config()
-    prompt_constraints = extract_task_constraints(_build_prompt_v2(request))
-    violation = validate_action_constraints(request.command, prompt_constraints)
+    task_constraints = _build_task_constraints(request)
+    violation = validate_action_constraints(request.command, task_constraints)
     if violation is not None:
         manager.set_failed(task_id, violation)
         return
@@ -159,6 +160,34 @@ def _build_step_callback(manager: WebTaskManager, task_id: str):
         manager.update_progress(task_id, phase=result.phase, message=(result.output or "")[:200])
 
     return _callback
+
+
+def _build_task_constraints(request: TaskCreateRequest) -> TaskConstraints:
+    """Build hard constraints from structured Web task options and prompt text."""
+    constraints = extract_task_constraints(_build_prompt_v2(request))
+    options = request.options
+
+    if options.only_port is not None and options.only_port not in constraints.allowed_ports:
+        constraints.allowed_ports.append(options.only_port)
+    if options.only_host and options.only_host not in constraints.allowed_hosts:
+        constraints.allowed_hosts.append(options.only_host)
+    if options.only_path and options.only_path not in constraints.allowed_paths:
+        constraints.allowed_paths.append(options.only_path)
+    if options.blocked_host and options.blocked_host not in constraints.blocked_hosts:
+        constraints.blocked_hosts.append(options.blocked_host)
+    if options.blocked_path and options.blocked_path not in constraints.blocked_paths:
+        constraints.blocked_paths.append(options.blocked_path)
+    if options.allow_actions:
+        constraints.allowed_actions = list(dict.fromkeys([*constraints.allowed_actions, *options.allow_actions]))
+    if options.block_actions:
+        constraints.blocked_actions = list(dict.fromkeys([*constraints.blocked_actions, *options.block_actions]))
+
+    if options.only_port is not None and request.command == "exploit" and not options.allow_actions:
+        constraints.blocked_actions = list(dict.fromkeys([*constraints.blocked_actions, "exploit"]))
+
+    if not constraints.is_empty():
+        constraints.strict_mode = True
+    return constraints
 
 
 def _build_prompt_v2(request: TaskCreateRequest) -> str:

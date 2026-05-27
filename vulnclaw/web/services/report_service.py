@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import datetime
 
 from vulnclaw.config.settings import SESSIONS_DIR, ensure_dirs
 from vulnclaw.report.generator import generate_report_from_target_state
@@ -10,26 +11,25 @@ from vulnclaw.target_state.store import load_target_state
 from vulnclaw.web.schemas import ReportContentView
 
 
-def list_reports(limit: int = 50) -> list[dict[str, str]]:
+def _report_item(path: Path, kind: str) -> dict[str, str | int]:
+    stat = path.stat()
+    return {
+        "name": path.name,
+        "path": str(path.resolve()),
+        "kind": kind,
+        "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+        "size_bytes": stat.st_size,
+    }
+
+
+def list_reports(limit: int = 50) -> list[dict[str, str | int]]:
     """List recent reports from the sessions directory."""
     ensure_dirs()
-    items: list[dict[str, str]] = []
+    items: list[dict[str, str | int]] = []
     for path in sorted(SESSIONS_DIR.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]:
-        items.append(
-            {
-                "name": path.name,
-                "path": str(path.resolve()),
-                "kind": "markdown",
-            }
-        )
+        items.append(_report_item(path, "markdown"))
     for path in sorted(SESSIONS_DIR.glob("*.html"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]:
-        items.append(
-            {
-                "name": path.name,
-                "path": str(path.resolve()),
-                "kind": "html",
-            }
-        )
+        items.append(_report_item(path, "html"))
     return items[:limit]
 
 
