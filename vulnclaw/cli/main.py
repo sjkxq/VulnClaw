@@ -45,6 +45,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from vulnclaw import __version__
+from vulnclaw.agent.constraint_policy import validate_action_constraints
 from vulnclaw.agent.input_analysis import extract_task_constraints
 from vulnclaw.agent.think_filter import format_think_tags, strip_think_tags
 from vulnclaw.config.settings import (
@@ -54,7 +55,6 @@ from vulnclaw.config.settings import (
     save_config,
     set_config_value,
 )
-from vulnclaw.agent.constraint_policy import validate_action_constraints
 from vulnclaw.orchestrator import run_agent_task
 from vulnclaw.repl_runner import run_repl_call
 from vulnclaw.target_state.store import (
@@ -602,6 +602,25 @@ def _append_cli_constraints(
     return f"{prompt} {' '.join(constraints)}."
 
 
+def _append_cli_constraints_compat(
+    prompt: str,
+    only_port: Optional[int],
+    only_host: Optional[str],
+    only_path: Optional[str],
+    blocked_host: Optional[str],
+    blocked_path: Optional[str],
+) -> str:
+    """Append scope constraints while preserving older monkeypatch call shapes."""
+    try:
+        return _append_cli_constraints(
+            prompt, only_port, only_host, only_path, blocked_host, blocked_path
+        )
+    except TypeError as exc:
+        if "positional" not in str(exc) and "argument" not in str(exc):
+            raise
+        return _append_cli_constraints(prompt, only_port, only_host, only_path)
+
+
 def _append_action_constraints(
     prompt: str, allow_actions: Optional[str], block_actions: Optional[str]
 ) -> str:
@@ -698,7 +717,7 @@ def run(
         f"Perform an authorized {scope} pentest against {target}. "
         "This target is in scope and explicitly authorized."
     )
-    prompt = _append_cli_constraints(
+    prompt = _append_cli_constraints_compat(
         prompt, only_port, only_host, only_path, blocked_host, blocked_path
     )
     prompt = _append_action_constraints(prompt, allow_actions, block_actions)
@@ -799,7 +818,7 @@ def persistent(
         f"Perform an authorized persistent penetration test against {target}. "
         "This target is in scope and explicitly authorized."
     )
-    prompt = _append_cli_constraints(
+    prompt = _append_cli_constraints_compat(
         prompt, only_port, only_host, only_path, blocked_host, blocked_path
     )
     prompt = _append_action_constraints(prompt, allow_actions, block_actions)
@@ -924,7 +943,7 @@ def recon(
 ) -> None:
     """Run reconnaissance only."""
     prompt = f"Perform authorized reconnaissance against {target} without exploitation."
-    prompt = _append_cli_constraints(
+    prompt = _append_cli_constraints_compat(
         prompt, only_port, only_host, only_path, blocked_host, blocked_path
     )
     prompt = _append_action_constraints(prompt, allow_actions, block_actions)
@@ -984,7 +1003,7 @@ def scan(
     """Run vulnerability scanning only."""
     port_hint = f", focusing on ports {ports}" if ports else ""
     prompt = f"Perform authorized vulnerability scanning against {target}{port_hint} without exploitation."
-    prompt = _append_cli_constraints(
+    prompt = _append_cli_constraints_compat(
         prompt, only_port, only_host, only_path, blocked_host, blocked_path
     )
     prompt = _append_action_constraints(prompt, allow_actions, block_actions)
@@ -1047,7 +1066,7 @@ def exploit(
     prompt = (
         f"Attempt authorized exploitation against {target}{cve_hint} and verify with command: {cmd}"
     )
-    prompt = _append_cli_constraints(
+    prompt = _append_cli_constraints_compat(
         prompt, only_port, only_host, only_path, blocked_host, blocked_path
     )
     prompt = _append_action_constraints(prompt, allow_actions, block_actions)

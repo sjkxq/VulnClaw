@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
-from vulnclaw.agent.context import TaskConstraints
 from vulnclaw.agent.constraint_policy import validate_action_constraints
+from vulnclaw.agent.context import TaskConstraints
 from vulnclaw.agent.core import AgentCore
 from vulnclaw.agent.input_analysis import extract_task_constraints
 from vulnclaw.config.settings import load_config
