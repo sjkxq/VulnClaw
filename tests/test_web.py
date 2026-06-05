@@ -778,11 +778,14 @@ class TestWebApp:
         assert "setReportFocus" in app_source
         assert "openReports(selectedTarget, path, Boolean(path))" in app_source
         assert "focus={reportFocus}" in app_source
-        assert "打开高级任务控制台" in settings_source
-        assert "工具链概览" in settings_source
-        assert "可执行服务" in settings_source
-        assert "nmap 可用性" in settings_source
-        assert "高级诊断" in settings_source
+        assert "onOpenAdvanced" in settings_source
+        assert "Diagnostics" in settings_source
+        assert "MCP status" in settings_source
+        assert "Open task console" in settings_source
+        assert "MCP services" in settings_source
+        assert "Tools" in settings_source
+        assert "nmap" in settings_source
+        assert "runtime" in settings_source
         assert "function handleSelectView" in app_source
         assert 'setSettingsSection("basic")' in app_source
         toast_source = (root / "src" / "components" / "ToastHost.tsx").read_text(
@@ -790,19 +793,16 @@ class TestWebApp:
         )
         assert "actionLabel?: string" in toast_source
         assert "toast-action-btn" in toast_source
-        assert 'actionLabel: "查看风险结果"' in app_source
-        assert 'actionLabel: "查看技术日志"' in app_source
+        assert 'actionLabel: "Open results"' in app_source
+        assert 'actionLabel: "Open console"' in app_source
         assert 'navigateToView("risk")' in app_source
         assert 'navigateToView("advanced")' in app_source
-        assert "启动前请再次确认你拥有该目标的测试授权" in home_source
-        assert "三步启动授权安全检查" in home_source
-        assert "输入授权目标" in home_source
-        assert "确认模式与范围" in home_source
-        assert "点击开始检查" in home_source
-        assert ".home-quick-steps" in styles_source
-        assert "可能进行更深入或多轮验证" in home_source
+        assert "Welcome to VulnClaw" in home_source
+        assert "New Scan Task" in home_source
+        assert "Start deep scan?" in home_source
+        assert "Continuous mode does not support a path-only scope." in home_source
+        assert ".goby-home-board" in styles_source
         assert "inferScopeFromTarget" in home_source
-        assert "由目标自动推断" in home_source
         assert "effectiveOnlyHost" in home_source
         assert "effectiveOnlyPort" in home_source
         assert "effectiveOnlyPath" in home_source
@@ -811,16 +811,12 @@ class TestWebApp:
         )
         assert "parseOptionalPort" in home_source
         assert "parseOptionalPort(defaultOnlyPort)" in settings_source
-        assert "端口必须是 1-65535 之间的数字" in validation_source
-        assert "持续检查暂不支持仅路径范围" in home_source
-        assert "将自动限制在端口" in home_source
-        assert "将自动限制在路径" in home_source
+        assert "Port must be a number between 1 and 65535." in validation_source
         assert "setConfirmOpen(true)" in home_source
         assert "useConfigQuery" in app_source
-        assert "查看检查结论、已验证风险、待复核线索和下一步建议" in app_source
-        assert "查看当前测试范围、越界拦截和规则来源记录" in app_source
-        assert "查看当前约束" not in app_source
-        assert "约束审计" not in app_source
+        assert "Findings" in app_source
+        assert "Scope limits and blocked actions." in app_source
+        assert "Constraint Audit" not in app_source
         assert "configQuery.refetch" in app_source
         assert "useQueryClient" in app_source
         assert "refreshTaskData" in app_source
@@ -833,8 +829,8 @@ class TestWebApp:
         confirm_source = (
             root / "src" / "components" / "ConfirmDialog.tsx"
         ).read_text(encoding="utf-8")
-        assert "VulnClaw 界面遇到问题" in error_boundary_source
-        assert "刷新界面" in error_boundary_source
+        assert "VulnClaw UI hit a rendering error" in error_boundary_source
+        assert "Reload UI" in error_boundary_source
         assert 'tone?: "primary" | "danger"' in confirm_source
         assert 'tone === "danger" ? "danger-btn" : "primary-btn"' in confirm_source
         assert "event.key === \"Escape\"" in confirm_source
@@ -843,26 +839,26 @@ class TestWebApp:
         assert 'aria-describedby="confirm-copy"' in confirm_source
         assert 'id="confirm-copy"' in confirm_source
         assert ".confirm-copy" in styles_source
-        assert "white-space: pre-line;" in styles_source
+        assert "white-space: pre-wrap;" in styles_source
         assert ".toast-action-btn" in styles_source
         assert 'tone="danger"' in app_source
-        assert "无法连接 VulnClaw 后端" in shell_source
-        assert "重新连接" in shell_source
+        assert "Backend unavailable" in shell_source
+        assert "Retry" in shell_source
         api_source = (root / "src" / "api" / "web.ts").read_text(encoding="utf-8")
-        assert "无法访问 VulnClaw 后端 API" in api_source
-        assert "请求失败" in api_source
+        assert "Unable to reach the VulnClaw backend API" in api_source
+        assert "Request failed" in api_source
         assert "getReportDownloadUrl" in api_source
-        assert "后端 API 返回了非 JSON 内容" in api_source
+        assert "The backend API returned non-JSON content" in api_source
         assert "summarizeErrorDetail" in api_source
         assert "replace(/<[^>]*>/g" in api_source
         assert "slice(0, 240)" in api_source
         banner_source = (root / "src" / "components" / "ActiveTaskBanner.tsx").read_text(
             encoding="utf-8"
         )
-        assert "已阻止" in banner_source
+        assert "blocked" in banner_source
         assert "boundary-alert-btn" in banner_source
-        assert "查看安全边界" in banner_source
-        assert "查看技术日志" in banner_source
+        assert "View safety boundary" in banner_source
+        assert "Open console" in banner_source
         assert 'task.status === "failed"' in banner_source
         assert "openBoundaryForActiveTask" in app_source
         assert 'onOpenAdvanced={() => navigateToView("advanced")}' in app_source
@@ -875,21 +871,21 @@ class TestWebApp:
         task_console_source = (
             root / "src" / "pages" / "TaskConsolePage.tsx"
         ).read_text(encoding="utf-8")
-        assert "打开原文件" in reports_source
+        assert "Open file" in reports_source
         assert "focus?: {" in reports_source
         assert "focus.openPreview" in reports_source
         assert "setSelectedPath(focus.path)" in reports_source
         assert "setPreviewOpen(true)" in reports_source
-        assert "导出副本" in reports_source
+        assert "Export copy" in reports_source
         assert "report-empty-state" in reports_source
         assert "report-filter-empty-state" in reports_source
-        assert "立即生成报告" in reports_source
-        assert "清空筛选并显示全部报告" in reports_source
+        assert "Generate" in reports_source
+        assert "Clear filters" in reports_source
         assert "resetReportFilters" in reports_source
         assert 'useState<"all" | "markdown" | "html">("all")' in reports_source
         assert "setKindFilter(preferences.reportFormat)" not in reports_source
-        assert "setKindFilter(generateFormat)" in reports_source
-        assert "报告列表默认展示全部格式" in reports_source
+        assert "await reportsQuery.refetch()" in reports_source
+        assert "setSelectedPath(result.path)" in reports_source
         assert 'sandbox=""' in report_preview_source
         assert "srcDoc={content}" in report_preview_source
         assert "event.key === \"Escape\"" in report_preview_source
@@ -902,9 +898,9 @@ class TestWebApp:
         assert "ConfirmDialog" in task_console_source
         assert "requiresRunConfirmation" in task_console_source
         assert 'command === "exploit" || command === "persistent"' in task_console_source
-        assert "确认启动高风险原始任务" in task_console_source
+        assert "Confirm raw task" in task_console_source
         assert "confirmStopOpen" in task_console_source
-        assert "确认停止当前任务" in task_console_source
+        assert "Stop current task" in task_console_source
         assert "setConfirmStopOpen(true)" in task_console_source
         assert task_console_source.count('tone="danger"') >= 2
         assert "handleRunRequest" in task_console_source
@@ -917,30 +913,26 @@ class TestWebApp:
             encoding="utf-8"
         )
         assert "risk-empty-state" in risk_source
-        assert "回首页开始检查" in risk_source
+        assert "New scan" in risk_source
         assert "onOpenReports(generatedReport.path)" in risk_source
         assert "useQueryClient" in risk_source
         assert 'queryKey: ["reports"]' in risk_source
-        assert "技术记录默认收起" in risk_source
         assert "原始 JSON" not in risk_source
         assert "原始 Target State" not in risk_source
         assert "taskOptionsToConstraints" in boundary_source
         assert "boundary-empty-state" in boundary_source
-        assert "回首页设置本次范围" in boundary_source
-        assert "去设置默认边界" in boundary_source
+        assert "Set scope on home" in boundary_source
+        assert "Open settings" in boundary_source
         assert "normalizeConstraints" in boundary_source
         assert "allowed_ports" in boundary_source
-        assert "活动任务" in boundary_source
-        assert "已保存范围" in boundary_source
-        assert "已保存测试范围" in boundary_source
-        assert "目标状态" not in boundary_source
-        assert "规则来源和拦截统计" in boundary_source
+        assert "Active task" in boundary_source
+        assert "Saved target" in boundary_source
+        assert "Target State" not in boundary_source
         assert "Constraint Audit" not in boundary_source
         assert "useQueryClient" in history_source
         assert 'tone="danger"' in history_source
         assert "history-empty-state" in history_source
-        assert "回首页开始检查" in history_source
-        assert "去首页设置目标" in history_source
+        assert "New scan" in history_source
         assert "onOpenHome" in history_source
         assert "onOpenHome={() => navigateToView(\"home\")}" in app_source
         assert 'queryKey: ["target", targetValue]' in history_source
@@ -989,15 +981,17 @@ class TestWebApp:
             Path(__file__).resolve().parents[1] / "frontend" / "src" / "styles.css"
         ).read_text(encoding="utf-8")
 
-        assert "@media (max-width: 1080px)" in styles
+        assert "@media (max-width: 1180px)" in styles
+        assert "@media (max-width: 760px)" in styles
         assert "body {\n  margin: 0;\n  min-width: 0;" in styles
-        assert "grid-template-columns: minmax(0, 1fr);" in styles
-        assert "max-width: 100vw;" in styles
+        assert "grid-template-columns: 1fr;" in styles
+        assert "grid-template-columns: var(--sidebar-width) minmax(0, 1fr);" in styles
         assert "min-width: 0;" in styles
-        assert ".split-grid" in styles
-        assert ".action-choice-grid" in styles
-        assert ".button-row .primary-btn" in styles
-        assert ".inset-card" in styles
+        assert ".app-shell" in styles
+        assert ".quick-rail" in styles
+        assert ".workspace" in styles
+        assert ".goby-home-board" in styles
+        assert ".goby-intel-grid" in styles
         assert "max-width: 100%;" in styles
 
     def test_static_fallback_is_toc_shell(self):

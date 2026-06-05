@@ -1265,7 +1265,7 @@ class TestAgentCoreLoop:
 
         dummy = DummyAgent()
         monkeypatch.setattr(llm_client, "extract_response", lambda message: "ok")
-        monkeypatch.setattr(llm_client.asyncio, "get_event_loop", lambda: DummyLoop())
+        monkeypatch.setattr(llm_client.asyncio, "get_running_loop", lambda: DummyLoop())
         result = await llm_client.call_llm_auto(dummy, "sys", "round")
         assert result == "ok"
 
@@ -1335,7 +1335,7 @@ class TestAgentCoreLoop:
 
         loop = DummyLoop()
         dummy = DummyAgent()
-        monkeypatch.setattr(llm_client.asyncio, "get_event_loop", lambda: loop)
+        monkeypatch.setattr(llm_client.asyncio, "get_running_loop", lambda: loop)
 
         async def no_sleep(_seconds):
             return None
@@ -1395,7 +1395,7 @@ class TestAgentCoreLoop:
 
         loop = DummyLoop()
         dummy = DummyAgent()
-        monkeypatch.setattr(llm_client.asyncio, "get_event_loop", lambda: loop)
+        monkeypatch.setattr(llm_client.asyncio, "get_running_loop", lambda: loop)
 
         with pytest.raises(RuntimeError):
             await llm_client.call_llm_auto(dummy, "sys", "round")
@@ -1495,7 +1495,7 @@ class TestAgentCoreLoop:
 
         loop = DummyLoop()
         dummy = DummyAgent()
-        monkeypatch.setattr(llm_client.asyncio, "get_event_loop", lambda: loop)
+        monkeypatch.setattr(llm_client.asyncio, "get_running_loop", lambda: loop)
         monkeypatch.setattr(
             llm_client, "handle_tool_calls_with_results", fake_handle_tool_calls_with_results
         )
@@ -1600,7 +1600,7 @@ class TestAgentCoreLoop:
             llm_client, "handle_tool_calls_with_results", fake_handle_tool_calls_with_results
         )
         monkeypatch.setattr(llm_client, "extract_response", lambda message: message.content)
-        monkeypatch.setattr(llm_client.asyncio, "get_event_loop", lambda: DummyLoop())
+        monkeypatch.setattr(llm_client.asyncio, "get_running_loop", lambda: DummyLoop())
 
         result = await llm_client.call_llm_auto(DummyAgent(), "sys", "round")
         assert result == "followup ok"
