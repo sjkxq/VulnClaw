@@ -117,48 +117,6 @@ def _print_agent_output(output: str, config) -> None:
             console.print("[dim](LLM returned only hidden reasoning and no visible answer.)[/dim]")
 
 
-def _print_streaming_chunk(delta: str, full_text: str, is_finished: bool, config) -> None:
-    """Print a streaming token chunk.
-
-    Uses ``console.print(..., end="", flush=True)`` for character-at-a-time
-    rendering and applies think-tag filtering so hidden reasoning is skipped.
-    """
-    if not delta:
-        if is_finished:
-            console.print()
-        return
-
-    # We filter by looking at "full_text so far" and computing what's new
-    # compared to "full_text before this delta". If show_thinking is False
-    # we need to know whether `delta` is inside a <think> block.
-    if not config.session.show_thinking:
-        # Simple approach: strip think tags from the full text, figure out
-        # what the visible portion is, and emit only the newly-visible part.
-        visible_full = strip_think_tags(full_text)
-        visible_prev = strip_think_tags(full_text[: len(full_text) - len(delta)])
-        newly_visible = visible_full[len(visible_prev) :]
-        if newly_visible:
-            from rich.markup import escape as rich_escape
-
-            console.print(rich_escape(newly_visible), end="", flush=True)
-    else:
-        from rich.markup import escape as rich_escape
-
-        console.print(rich_escape(delta), end="", flush=True)
-
-    if is_finished:
-        console.print()
-
-
-def _make_streaming_callback(config) -> "Callable[[str, str, bool], None]":
-    """Create an on_chunk callback bound to the given config."""
-
-    def _cb(delta: str, full_text: str, is_finished: bool) -> None:
-        _print_streaming_chunk(delta, full_text, is_finished, config)
-
-    return _cb
-
-
 # 鈹€鈹€ REPL 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 
@@ -366,7 +324,7 @@ def _run_repl() -> None:
                 try:
 
                     async def _run_persistent():
-                        return await agent.persistent_pentest_streaming(
+                        return await agent.persistent_pentest(
                             user_input=persistent_prompt,
                             target=persistent_target,
                             rounds_per_cycle=rounds_per_cycle,
@@ -374,7 +332,6 @@ def _run_repl() -> None:
                             auto_report=auto_report,
                             on_cycle_step=_on_persistent_step,
                             on_cycle_complete=_on_persistent_cycle,
-                            on_chunk=_make_streaming_callback(config),
                         )
 
                     asyncio.run(_run_persistent())
@@ -438,7 +395,7 @@ def _run_repl() -> None:
 
             try:
                 if is_auto_mode:
-                    # Autonomous pentest loop (streaming)
+                    # Autonomous pentest loop
                     console.print(_("cli.enter_auto_mode"))
                     console.print()
 
@@ -455,12 +412,11 @@ def _run_repl() -> None:
                                 if result.phase:
                                     current_phase = result.phase
 
-                            return await agent.auto_pentest_streaming(
+                            return await agent.auto_pentest(
                                 user_input,
                                 target=current_target,
                                 max_rounds=config.session.max_rounds,
                                 on_step=on_step,
-                                on_chunk=_make_streaming_callback(config),
                             )
 
                         async def after_result(results):
@@ -498,14 +454,10 @@ def _run_repl() -> None:
                     asyncio.run(_run_auto())
 
                 else:
-                    # Single-turn chat (streaming)
+                    # Single-turn chat
                     async def _run_agent():
                         async def call():
-                            return await agent.chat_streaming(
-                                user_input,
-                                target=current_target,
-                                on_chunk=_make_streaming_callback(config),
-                            )
+                            return await agent.chat(user_input, target=current_target)
 
                         async def after_result(result):
                             nonlocal current_target, current_phase
@@ -514,14 +466,8 @@ def _run_repl() -> None:
                                     current_target = result.target
                                 if result.phase:
                                     current_phase = result.phase
-                                # Streaming already printed during generation; only
-                                # emit a fallback if the output produced no visible text
-                                if result.output and not config.session.show_thinking:
-                                    visible = strip_think_tags(result.output)
-                                    if not visible.strip():
-                                        console.print(
-                                            "[dim](LLM returned only hidden reasoning and no visible answer.)[/dim]"
-                                        )
+                                if result.output:
+                                    _print_agent_output(result.output, config)
 
                         await _run_repl_agent_call(agent, call=call, after_result=after_result)
 
@@ -777,16 +723,15 @@ def run(
 
     async def _run():
         async def runner(agent, shared_config):
-            def on_step(r, res):
-                if res.output:
-                    _print_agent_output(f"[dim]Round {r}[/]: {res.output[:200]}...", shared_config)
-
-            return await agent.auto_pentest_streaming(
+            return await agent.auto_pentest(
                 prompt,
                 target=target,
                 max_rounds=shared_config.session.max_rounds,
-                on_step=on_step,
-                on_chunk=_make_streaming_callback(shared_config),
+                on_step=lambda r, res: (
+                    _print_agent_output(f"[dim]Round {r}[/]: {res.output[:200]}...", shared_config)
+                    if res.output
+                    else None
+                ),
             )
 
         result = await _run_cli_orchestrated_task(
@@ -906,7 +851,7 @@ def persistent(
 
     async def _run():
         async def runner(agent, _config):
-            return await agent.persistent_pentest_streaming(
+            return await agent.persistent_pentest(
                 user_input=prompt,
                 target=target,
                 rounds_per_cycle=rounds_per_cycle,
@@ -914,7 +859,6 @@ def persistent(
                 auto_report=auto_report,
                 on_cycle_step=_on_cycle_step,
                 on_cycle_complete=_on_cycle_complete,
-                on_chunk=_make_streaming_callback(_config),
             )
 
         return await _run_cli_orchestrated_task(
@@ -1005,11 +949,9 @@ def recon(
 
     async def _run():
         async def runner(agent, _config):
-            result = await agent.chat_streaming(
-                prompt,
-                target=target,
-                on_chunk=_make_streaming_callback(_config),
-            )
+            result = await agent.chat(prompt, target=target)
+            if result and result.output:
+                console.print(result.output)
             return result
 
         await _run_cli_orchestrated_task(
@@ -1067,11 +1009,9 @@ def scan(
 
     async def _run():
         async def runner(agent, _config):
-            result = await agent.chat_streaming(
-                prompt,
-                target=target,
-                on_chunk=_make_streaming_callback(_config),
-            )
+            result = await agent.chat(prompt, target=target)
+            if result and result.output:
+                console.print(result.output)
             return result
 
         await _run_cli_orchestrated_task(
@@ -1132,11 +1072,9 @@ def exploit(
 
     async def _run():
         async def runner(agent, _config):
-            result = await agent.chat_streaming(
-                prompt,
-                target=target,
-                on_chunk=_make_streaming_callback(_config),
-            )
+            result = await agent.chat(prompt, target=target)
+            if result and result.output:
+                console.print(result.output)
             return result
 
         await _run_cli_orchestrated_task(

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { createTask, stopTask } from "../api/web";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useTasksQuery } from "../hooks/queries";
@@ -58,44 +58,6 @@ export function TaskConsolePage({
   const [confirmRunOpen, setConfirmRunOpen] = useState(false);
   const [confirmStopOpen, setConfirmStopOpen] = useState(false);
 
-  const [activeRoundText, setActiveRoundText] = useState("");
-  const [activeRoundMeta, setActiveRoundMeta] = useState<{
-    round?: number;
-    cycle?: number;
-    phase?: string;
-  } | null>(null);
-  const terminalRef = useRef<HTMLDivElement | null>(null);
-
-  // Auto-scroll to the bottom whenever new streaming text or events arrive.
-  useEffect(() => {
-    if (terminalRef.current) {
-      const el = terminalRef.current;
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [events, activeRoundText]);
-
-  // Detect llm_chunk / round_output events emitted during the lifecycle
-  // of this component to update the active round buffer.
-  useEffect(() => {
-    if (!events.length) return;
-    const last = events[events.length - 1];
-    if (last.event === "llm_chunk") {
-      const payload = last.payload as {
-        delta?: string;
-        text_so_far?: string;
-        is_finished?: boolean;
-      };
-      setActiveRoundText(payload?.text_so_far ?? "");
-    } else if (
-      last.event === "round_output" ||
-      last.event === "cycle_completed" ||
-      last.event === "task_state_changed"
-    ) {
-      setActiveRoundText("");
-      setActiveRoundMeta(null);
-    }
-  }, [events]);
-
   const latestEvents = useMemo(() => events.slice(-24).reverse(), [events]);
   const requiresRunConfirmation = command === "exploit" || command === "persistent";
   const scopePreview = formatConstraintSummary({
@@ -121,15 +83,9 @@ export function TaskConsolePage({
     if (typeof payload.cycle === "number") parts.push(`cycle ${payload.cycle}`);
     if (typeof payload.round === "number") parts.push(`round ${payload.round}`);
     if (typeof payload.phase === "string") parts.push(formatPhaseLabel(payload.phase));
-    if (item.event === "llm_chunk") {
-      const delta = typeof payload.delta === "string" ? payload.delta : "";
-      const soFar = typeof payload.text_so_far === "string" ? payload.text_so_far : "";
-      parts.push(delta || soFar || formatEventLabel(item.event));
-    } else {
-      const text = typeof payload.text === "string" ? payload.text : "";
-      const message = typeof payload.message === "string" ? payload.message : "";
-      parts.push(text || message || formatEventLabel(item.event));
-    }
+    const text = typeof payload.text === "string" ? payload.text : "";
+    const message = typeof payload.message === "string" ? payload.message : "";
+    parts.push(text || message || formatEventLabel(item.event));
     return parts.join(" - ");
   }
 
@@ -384,57 +340,28 @@ export function TaskConsolePage({
 
         <article className="card inset-card">
           <h4>Live event stream</h4>
-          <div className="terminal terminal-scroll" ref={terminalRef}>
+          <div className="terminal terminal-scroll">
             {activeTask ? (
               <>
                 <div className="terminal-line">Task ID: {activeTask.task_id}</div>
-                <div className="terminal-line">
-                  Command: {formatTaskCommand(activeTask.command)} ({activeTask.command})
-                </div>
+                <div className="terminal-line">Command: {formatTaskCommand(activeTask.command)} ({activeTask.command})</div>
                 <div className="terminal-line">Target: {activeTask.target}</div>
-                <div className="terminal-line dim">
-                  Phase: {formatPhaseLabel(activeTask.latest_phase)}
-                </div>
-                {activeTask.summary?.constraints &&
-                  Object.keys(activeTask.summary.constraints).length > 0 && (
-                    <div className="terminal-line dim">
-                      Boundary: {formatConstraintSummary(activeTask.summary.constraints)}
-                    </div>
-                  )}
+                <div className="terminal-line dim">Phase: {formatPhaseLabel(activeTask.latest_phase)}</div>
+                {activeTask.summary?.constraints && Object.keys(activeTask.summary.constraints).length > 0 && (
+                  <div className="terminal-line dim">Boundary: {formatConstraintSummary(activeTask.summary.constraints)}</div>
+                )}
               </>
             ) : (
               <div className="terminal-line dim">No running task.</div>
             )}
 
             {latestEvents.map((item) => (
-              <div
-                key={`${item.timestamp}-${item.event}`}
-                className="terminal-line terminal-row"
-              >
-                <span className={`terminal-event tone-${eventTone(item.event)}`}>
-                  {formatEventLabel(item.event)}
-                </span>
-                <span className="terminal-time">
-                  {new Date(item.timestamp).toLocaleTimeString()}
-                </span>
+              <div key={`${item.timestamp}-${item.event}`} className="terminal-line terminal-row">
+                <span className={`terminal-event tone-${eventTone(item.event)}`}>{formatEventLabel(item.event)}</span>
+                <span className="terminal-time">{new Date(item.timestamp).toLocaleTimeString()}</span>
                 <span>{renderEventText(item)}</span>
               </div>
             ))}
-
-            {activeRoundText && (
-              <div className="terminal-line terminal-row">
-                <span className="terminal-event tone-info">streaming</span>
-                <span className="terminal-time">
-                  {activeRoundMeta?.round != null
-                    ? `round ${activeRoundMeta.round}`
-                    : ""}
-                </span>
-                <span>{activeRoundText}</span>
-                <span className="terminal-cursor" aria-hidden>
-                  ▍
-                </span>
-              </div>
-            )}
           </div>
         </article>
       </div>
