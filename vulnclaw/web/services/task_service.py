@@ -87,18 +87,37 @@ async def _run_task(manager: WebTaskManager, task_id: str, request: TaskCreateRe
         mcp_manager.stop_all()
 
 
+def _build_chunk_callback(manager: WebTaskManager, task_id: str):
+    """Build an on_chunk callback that publishes ``llm_chunk`` events."""
+
+    def _cb(delta: str, full_text: str, is_finished: bool) -> None:
+        manager.publish(
+            task_id,
+            "llm_chunk",
+            {
+                "delta": delta,
+                "text_so_far": full_text,
+                "is_finished": is_finished,
+            },
+        )
+
+    return _cb
+
+
 async def _run_single_task(
     manager: WebTaskManager, task_id: str, agent: AgentCore, request: TaskCreateRequest
 ) -> None:
     prompt = _build_prompt_v2(request)
+    chunk_cb = _build_chunk_callback(manager, task_id)
 
     if request.command == "run":
         max_rounds = request.options.max_rounds or agent.config.session.max_rounds
-        results = await agent.auto_pentest(
+        results = await agent.auto_pentest_streaming(
             prompt,
             target=request.target,
             max_rounds=max_rounds,
             on_step=_build_step_callback(manager, task_id),
+            on_chunk=chunk_cb,
         )
         if results:
             last = results[-1]
@@ -107,7 +126,9 @@ async def _run_single_task(
             )
         return
 
-    result = await agent.chat(prompt, target=request.target)
+    result = await agent.chat_streaming(
+        prompt, target=request.target, on_chunk=chunk_cb
+    )
     if result.output:
         manager.publish(
             task_id,
@@ -153,7 +174,7 @@ async def _run_persistent_task(
             },
         )
 
-    await agent.persistent_pentest(
+    await agent.persistent_pentest_streaming(
         user_input=prompt,
         target=request.target,
         rounds_per_cycle=rounds_per_cycle,
@@ -161,6 +182,7 @@ async def _run_persistent_task(
         auto_report=True,
         on_cycle_step=on_cycle_step,
         on_cycle_complete=on_cycle_complete,
+        on_chunk=_build_chunk_callback(manager, task_id),
     )
 
 

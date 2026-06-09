@@ -33,8 +33,9 @@ from vulnclaw.agent.input_analysis import (
     get_payload_examples,
 )
 from vulnclaw.agent.kb_context import build_kb_context
-from vulnclaw.agent.llm_client import call_llm
+from vulnclaw.agent.llm_client import call_llm, call_llm_streaming
 from vulnclaw.agent.loop_controller import auto_pentest as run_auto_pentest
+from vulnclaw.agent.loop_controller import auto_pentest_streaming as run_auto_pentest_streaming
 from vulnclaw.agent.loop_controller import persistent_pentest as run_persistent_pentest
 from vulnclaw.agent.prompt_context import build_round_context, generate_attack_summary
 from vulnclaw.agent.recon_tracker import update_recon_dimension_completion
@@ -304,6 +305,55 @@ class AgentCore:
 
         return result
 
+    async def chat_streaming(
+        self,
+        user_input: str,
+        target: Optional[str] = None,
+        *,
+        on_chunk: Optional[Callable[[str, str, bool], None]] = None,
+    ) -> AgentResult:
+        """Single-turn chat with streaming token output.
+
+        Args:
+            user_input: The user message.
+            target: Optional target override.
+            on_chunk: Callback ``(delta, full_text_so_far, is_finished)`` invoked
+                for each token chunk emitted by the LLM.
+
+        Returns an :class:`AgentResult` with the final full text in ``.output``.
+        """
+        result = AgentResult()
+
+        detected_target = target or self._detect_target(user_input)
+        detected_phase = self._detect_phase(user_input)
+
+        if detected_target:
+            self.context.state.target = detected_target
+            result.target = detected_target
+
+        if detected_phase:
+            self.context.state.advance_phase(detected_phase)
+            result.phase = detected_phase.value
+
+        self.context.add_user_message(user_input)
+
+        system_prompt = self._build_system_prompt(
+            detected_target, auto_mode=False, user_input=user_input
+        )
+
+        try:
+            response_text = await call_llm_streaming(self, system_prompt, on_chunk=on_chunk)
+            result.output = response_text
+
+            self.context.add_assistant_message(response_text)
+            self._finding_parser.parse(response_text)
+            self._maybe_auto_save_session()
+
+        except Exception as e:
+            result.output = f"[!] Agent 错误: {e}"
+
+        return result
+
     # ── Autonomous pentest loop ─────────────────────────────────────
 
     async def auto_pentest(
@@ -315,6 +365,20 @@ class AgentCore:
     ) -> list[AgentResult]:
         """Autonomous penetration test loop."""
         return await run_auto_pentest(self, user_input, target, max_rounds, on_step)
+
+    async def auto_pentest_streaming(
+        self,
+        user_input: str,
+        target: Optional[str] = None,
+        max_rounds: int = 15,
+        *,
+        on_step: Optional[Callable[[int, AgentResult], None]] = None,
+        on_chunk: Optional[Callable[[str, str, bool], None]] = None,
+    ) -> list[AgentResult]:
+        """Autonomous penetration test loop with token-level streaming."""
+        return await run_auto_pentest_streaming(
+            self, user_input, target, max_rounds, on_step=on_step, on_chunk=on_chunk
+        )
 
     def _build_round_context(self, round_num: int, max_rounds: int) -> str:
         """Build context string for the current round in auto loop."""
@@ -342,6 +406,33 @@ class AgentCore:
             auto_report,
             on_cycle_step,
             on_cycle_complete,
+        )
+
+    async def persistent_pentest_streaming(
+        self,
+        user_input: str,
+        target: Optional[str] = None,
+        rounds_per_cycle: int = 100,
+        max_cycles: int = 10,
+        auto_report: bool = True,
+        *,
+        on_cycle_step: Optional[Callable[[int, int, AgentResult], None]] = None,
+        on_cycle_complete: Optional[Callable[[int, "PersistentCycleResult"], None]] = None,
+        on_chunk: Optional[Callable[[str, str, bool], None]] = None,
+    ) -> list["PersistentCycleResult"]:
+        """Streaming variant of :meth:`persistent_pentest`."""
+        from vulnclaw.agent.loop_controller import persistent_pentest_streaming
+
+        return await persistent_pentest_streaming(
+            self,
+            user_input,
+            target,
+            rounds_per_cycle,
+            max_cycles,
+            auto_report,
+            on_cycle_step=on_cycle_step,
+            on_cycle_complete=on_cycle_complete,
+            on_chunk=on_chunk,
         )
 
     def _detect_phase_from_output(self, output: str) -> Optional[PentestPhase]:
